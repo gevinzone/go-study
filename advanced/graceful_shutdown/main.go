@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"gitee.com/geektime-geekbang/geektime-go/advance/ctx/graceful_shutdown/service"
+	"gitee.com/geektime-geekbang/geektime-go/advanced/graceful_shutdown/service"
 	"log"
 	"net/http"
 	"time"
