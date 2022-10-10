@@ -21,15 +21,27 @@ func (a Aggregate) As(alias string) Aggregate {
 
 // EQ 例如 C("id").Eq(12)
 func (a Aggregate) EQ(arg any) Predicate {
-	panic("implement me")
+	return Predicate{
+		left:  a,
+		op:    opEQ,
+		right: exprOf(arg),
+	}
 }
 
 func (a Aggregate) LT(arg any) Predicate {
-	panic("implement me")
+	return Predicate{
+		left:  a,
+		op:    opLT,
+		right: exprOf(arg),
+	}
 }
 
 func (a Aggregate) GT(arg any) Predicate {
-	panic("implement me")
+	return Predicate{
+		left:  a,
+		op:    opGT,
+		right: exprOf(arg),
+	}
 }
 
 func Avg(c string) Aggregate {

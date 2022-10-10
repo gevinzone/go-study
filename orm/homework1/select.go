@@ -57,17 +57,24 @@ func (s *Selector[T]) Build() (*Query, error) {
 		s.sb.WriteString(s.table)
 	}
 
-	// 构造 WHERE
-	if len(s.where) > 0 {
-		// 类似这种可有可无的部分，都要在前面加一个空格
-		s.sb.WriteString(" WHERE ")
-		// WHERE 是不允许用别名的
-		if err = s.buildPredicates(s.where); err != nil {
-			return nil, err
-		}
+	if err = s.buildWhere(); err != nil {
+		return nil, err
 	}
-
-	panic("implement me")
+	if err = s.buildGroupBy(); err != nil {
+		return nil, err
+	}
+	if err = s.buildHaving(); err != nil {
+		return nil, err
+	}
+	if err = s.buildOrderBy(); err != nil {
+		return nil, err
+	}
+	if err = s.buildLimit(); err != nil {
+		return nil, err
+	}
+	if err = s.buildOffset(); err != nil {
+		return nil, err
+	}
 
 	s.sb.WriteString(";")
 	return &Query{
@@ -76,7 +83,45 @@ func (s *Selector[T]) Build() (*Query, error) {
 	}, nil
 }
 
+func (s *Selector[T]) buildWhere() error {
+	if len(s.where) < 1 {
+		return nil
+	}
+	// 类似这种可有可无的部分，都要在前面加一个空格
+	s.sb.WriteString(" WHERE ")
+	// WHERE 是不允许用别名的
+	return s.buildPredicates(s.where)
+}
+
+func (s *Selector[T]) buildGroupBy() error {
+	if len(s.groupBy) < 1 {
+		return nil
+	}
+	s.sb.WriteString(" GROUP BY ")
+	for i, c := range s.groupBy {
+		if i > 0 {
+			s.sb.WriteByte(',')
+		}
+		if err := s.buildColumn(c.name, c.alias); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Selector[T]) buildHaving() error {
+	if len(s.having) < 1 {
+		return nil
+	}
+	s.sb.WriteString(" HAVING ")
+	return s.buildPredicates(s.having)
+}
+
 func (s *Selector[T]) buildOrderBy() error {
+	if len(s.orderBy) < 1 {
+		return nil
+	}
+	s.sb.WriteString(" ORDER BY ")
 	for idx, ob := range s.orderBy {
 		if idx > 0 {
 			s.sb.WriteByte(',')
@@ -88,6 +133,28 @@ func (s *Selector[T]) buildOrderBy() error {
 		s.sb.WriteByte(' ')
 		s.sb.WriteString(ob.order)
 	}
+	return nil
+}
+
+func (s *Selector[T]) buildLimit() error {
+	if s.limit == 0 {
+		return nil
+	}
+	s.sb.WriteString(" LIMIT ")
+	s.sb.WriteByte('?')
+	s.args = append(s.args, s.limit)
+
+	return nil
+}
+
+func (s *Selector[T]) buildOffset() error {
+	if s.offset == 0 {
+		return nil
+	}
+	s.sb.WriteString(" OFFSET ")
+	s.sb.WriteByte('?')
+	s.args = append(s.args, s.offset)
+
 	return nil
 }
 
@@ -159,7 +226,59 @@ func (s *Selector[T]) buildColumn(c string, alias string) error {
 }
 
 func (s *Selector[T]) buildExpression(e Expression) error {
-	panic("implement me")
+	if e == nil {
+		return nil
+	}
+	switch exp := e.(type) {
+	case Column:
+		if err := s.buildColumn(exp.name, ""); err != nil {
+			return err
+		}
+	case value:
+		s.sb.WriteByte('?')
+		s.args = append(s.args, exp.val)
+	case Predicate:
+		_, lp := exp.left.(Predicate)
+		if lp {
+			s.sb.WriteByte('(')
+		}
+		if err := s.buildExpression(exp.left); err != nil {
+			return err
+		}
+		if lp {
+			s.sb.WriteByte(')')
+		}
+
+		if exp.op.String() != "" {
+			s.sb.WriteByte(' ')
+			s.sb.WriteString(exp.op.String())
+			s.sb.WriteByte(' ')
+		}
+
+		_, rp := exp.right.(Predicate)
+		if rp {
+			s.sb.WriteByte('(')
+		}
+		if err := s.buildExpression(exp.right); err != nil {
+			return err
+		}
+		if rp {
+			s.sb.WriteByte(')')
+		}
+	case Aggregate:
+		if err := s.buildAggregate(exp, false); err != nil {
+			return err
+		}
+	case RawExpr:
+		s.sb.WriteString(exp.raw)
+		if len(exp.args) != 0 {
+			s.addArgs(exp.args...)
+		}
+
+	default:
+		return errs.NewErrUnsupportedExpressionType(exp)
+	}
+	return nil
 }
 
 // Where 用于构造 WHERE 查询条件。如果 ps 长度为 0，那么不会构造 WHERE 部分
@@ -248,11 +367,21 @@ func (s *Selector[T]) GetMulti(ctx context.Context) ([]*T, error) {
 		return nil, err
 	}
 
+	res := make([]*T, 0, 10)
 	for rows.Next() {
-		// 在这里构造 []*T
+		t := new(T)
+		meta, err := s.db.r.Get(t)
+		if err != nil {
+			return nil, err
+		}
+		val := s.db.valCreator(t, meta)
+		err = val.SetColumns(rows)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, t)
 	}
-
-	panic("implement me")
+	return res, nil
 }
 
 func NewSelector[T any](db *DB) *Selector[T] {
@@ -271,9 +400,15 @@ type OrderBy struct {
 }
 
 func Asc(col string) OrderBy {
-	panic("implement me")
+	return OrderBy{
+		col:   col,
+		order: "ASC",
+	}
 }
 
 func Desc(col string) OrderBy {
-	panic("implement me")
+	return OrderBy{
+		col:   col,
+		order: "DESC",
+	}
 }
