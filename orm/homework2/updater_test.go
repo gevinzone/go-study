@@ -1,5 +1,3 @@
-
-
 package orm
 
 import (
@@ -43,6 +41,17 @@ func TestUpdater_Build(t *testing.T) {
 			},
 		},
 		{
+			name: "assignment2",
+			u: NewUpdater[TestModel](db).Update(&TestModel{
+				Age:       18,
+				FirstName: "Tom",
+			}).Set(Assign("FirstName", "DaMing")),
+			want: &Query{
+				SQL:  "UPDATE `test_model` SET `first_name`=?;",
+				Args: []any{"DaMing"},
+			},
+		},
+		{
 			name: "where",
 			u: NewUpdater[TestModel](db).Update(&TestModel{
 				Age:       18,
@@ -78,7 +87,7 @@ func TestUpdater_Build(t *testing.T) {
 		},
 		{
 			name: "non-zero",
-			u: NewUpdater[TestModel](db).Set(AssignNotZeroColumns(&TestModel{Id: 13})...),
+			u:    NewUpdater[TestModel](db).Set(AssignNotZeroColumns(&TestModel{Id: 13})...),
 			want: &Query{
 				SQL:  "UPDATE `test_model` SET `id`=?;",
 				Args: []any{int64(13)},
