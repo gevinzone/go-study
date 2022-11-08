@@ -20,7 +20,7 @@ func NewMaxMemoryCache(max int64, cache Cache) *MaxMemoryCache {
 		Cache: cache,
 		max:   max,
 	}
-	res.lruSentinel = &lruCache{}
+	res.lruSentinel = newLruCache()
 	// 注册回调
 	res.OnEvicted(func(key string, val []byte) {
 		// 删除key时，修改used 大小
@@ -65,34 +65,4 @@ func (m *MaxMemoryCache) lruStrategy(ctx context.Context, size int64) error {
 		}
 	}
 	return nil
-}
-
-type lru interface {
-	get(key string) (any, error)
-	set(key string, val any) error
-	getOldest() (string, any, error)
-	deleteOldest() (string, any, error)
-}
-
-type lruCache struct {
-}
-
-func (l *lruCache) get(key string) (any, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (l *lruCache) set(key string, val any) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (l *lruCache) getOldest() (string, any, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (l *lruCache) deleteOldest() (string, any, error) {
-	//TODO implement me
-	panic("implement me")
 }

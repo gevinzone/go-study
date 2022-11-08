@@ -16,3 +16,10 @@ type Cache interface {
 
 	OnEvicted(func(key string, val []byte))
 }
+
+type lru interface {
+	get(key string) (any, error)
+	set(key string, val any) error
+	getOldest() (string, any, error)
+	deleteOldest() (string, any, error)
+}
