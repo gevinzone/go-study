@@ -33,20 +33,17 @@ func NewClient(cmd redis.Cmdable) *Client {
 
 func (c *Client) Lock(ctx context.Context, key string,
 	expiration time.Duration, retry RetryStrategy, timeout time.Duration) (*Lock, error) {
-	val := uuid.New().String()
-	if ctx.Err() != nil {
+	select {
+	case <-ctx.Done():
 		return nil, ctx.Err()
+	default:
 	}
-	l, err := c.createLock(ctx, key, val, expiration, timeout)
-	if l != nil {
-		return l, nil
-	}
-	if err != nil && errors.Is(err, context.DeadlineExceeded) {
-		return nil, err
+	val := uuid.New().String()
+	if l, err := c.createLock(ctx, key, val, expiration, timeout); l != nil || errors.Is(err, context.DeadlineExceeded) {
+		return l, err
 	}
 
 	for {
-
 		// 超时，或没抢到锁，则重试
 		interval, ok := retry.Next()
 		if !ok {
