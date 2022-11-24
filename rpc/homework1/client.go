@@ -3,6 +3,8 @@ package homework1
 import (
 	"context"
 	"errors"
+	"gitee.com/geektime-geekbang/geektime-go/rpc/homework1/compression"
+	"gitee.com/geektime-geekbang/geektime-go/rpc/homework1/compression/gzip"
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework1/message"
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework1/serialization"
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework1/serialization/json"
@@ -19,6 +21,7 @@ var messageId uint32 = 0
 type Client struct {
 	connPool   pool.Pool
 	serializer serialization.Serializer
+	compressor compression.Compressor
 }
 
 func NewClient(addr string) (*Client, error) {
@@ -40,6 +43,8 @@ func NewClient(addr string) (*Client, error) {
 	return &Client{
 		connPool:   p,
 		serializer: json.Serializer{},
+		//compressor: uncompressed.Compressor{},
+		compressor: gzip.Compressor{},
 	}, nil
 }
 
@@ -106,6 +111,11 @@ func (c *Client) InitService(service Service) error {
 				results = append(results, reflect.ValueOf(err))
 				return
 			}
+			if bs, err = c.compressor.Compress(bs); err != nil {
+				results = append(results, reflect.Zero(outType))
+				results = append(results, reflect.ValueOf(err))
+				return
+			}
 			msgId := atomic.AddUint32(&messageId, 1)
 			meta := make(map[string]string, 2)
 			if isOneway(ctx) {
@@ -119,7 +129,7 @@ func (c *Client) InitService(service Service) error {
 				BodyLength:  uint32(len(bs)),
 				MessageId:   msgId,
 				Version:     0,
-				Compressor:  0,
+				Compressor:  c.compressor.Code(),
 				Serializer:  c.serializer.Code(),
 				ServiceName: service.Name(),
 				MethodName:  fieldType.Name,
@@ -136,7 +146,13 @@ func (c *Client) InitService(service Service) error {
 				return
 			}
 			resObj := reflect.New(outType).Interface()
-			err = c.serializer.Decode(resp.Data, resObj)
+			data, err := c.compressor.Decompress(resp.Data)
+			if err != nil {
+				results = append(results, reflect.Zero(outType))
+				results = append(results, reflect.ValueOf(err))
+				return
+			}
+			err = c.serializer.Decode(data, resObj)
 			var errVal reflect.Value
 			results = append(results, reflect.ValueOf(resObj).Elem())
 			if err != nil {
