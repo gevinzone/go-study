@@ -150,6 +150,7 @@ func (s *Server) handleConn(conn net.Conn) error {
 	}
 }
 
+// todo 1. 提供map[serviceName]Index 的映射，缓存service方法；2. 把stub放进对象池
 type reflectionStub struct {
 	value       reflect.Value
 	serializers []serialization.Serializer

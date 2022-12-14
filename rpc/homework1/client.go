@@ -105,15 +105,21 @@ func (c *Client) InitService(service Service) error {
 			ctx := args[0].Interface().(context.Context)
 			arg := args[1].Interface()
 
+			fillErrorResult := func(res *[]reflect.Value, err error) {
+				*res = append(*res, reflect.Zero(outType), reflect.ValueOf(err))
+			}
+
 			bs, err := c.serializer.Encode(arg)
 			if err != nil {
-				results = append(results, reflect.Zero(outType))
-				results = append(results, reflect.ValueOf(err))
+				//results = append(results, reflect.Zero(outType))
+				//results = append(results, reflect.ValueOf(err))
+				fillErrorResult(&results, err)
 				return
 			}
 			if bs, err = c.compressor.Compress(bs); err != nil {
-				results = append(results, reflect.Zero(outType))
-				results = append(results, reflect.ValueOf(err))
+				//results = append(results, reflect.Zero(outType))
+				//results = append(results, reflect.ValueOf(err))
+				fillErrorResult(&results, err)
 				return
 			}
 			msgId := atomic.AddUint32(&messageId, 1)
@@ -148,8 +154,9 @@ func (c *Client) InitService(service Service) error {
 			resObj := reflect.New(outType).Interface()
 			data, err := c.compressor.Decompress(resp.Data)
 			if err != nil {
-				results = append(results, reflect.Zero(outType))
-				results = append(results, reflect.ValueOf(err))
+				//results = append(results, reflect.Zero(outType))
+				//results = append(results, reflect.ValueOf(err))
+				fillErrorResult(&results, err)
 				return
 			}
 			err = c.serializer.Decode(data, resObj)
