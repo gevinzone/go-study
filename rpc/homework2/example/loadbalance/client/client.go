@@ -6,7 +6,7 @@ import (
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework2"
 	gen2 "gitee.com/geektime-geekbang/geektime-go/rpc/homework2/example/loadbalance/proto/gen"
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework2/loadbalance"
-	"gitee.com/geektime-geekbang/geektime-go/rpc/homework2/loadbalance/roundrobin"
+	"gitee.com/geektime-geekbang/geektime-go/rpc/homework2/loadbalance/fastest"
 	"gitee.com/geektime-geekbang/geektime-go/rpc/homework2/registry/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -29,9 +29,17 @@ func main() {
 		panic(err)
 	}
 	// 注册你的负载均衡策略
-	pickerBuilder := &roundrobin.PickerBuilder{
-		Filter: loadbalance.GroupFilter,
+	pickerBuilder := &fastest.Builder{
+		Filter:   loadbalance.GroupFilter,
+		Endpoint: "http://localhost:9090",
+		Query:    `micro_example_observability_response{kind="server",quantile="0.5"}`,
+		Interval: time.Second,
 	}
+
+	//pickerBuilder := &leastactive.PickerBuilder{
+	//	//Filter: loadbalance.GroupFilter,
+	//}
+
 	builder := base.NewBalancerBuilder(pickerBuilder.Name(), pickerBuilder, base.Config{HealthCheck: true})
 	balancer.Register(builder)
 

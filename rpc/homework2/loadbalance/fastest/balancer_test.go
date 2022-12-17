@@ -1,4 +1,4 @@
-package homework2_fastest
+package fastest
 
 import (
 	"google.golang.org/grpc/resolver"
@@ -12,9 +12,9 @@ func TestBalancer_updateRespTime(t *testing.T) {
 
 	balancer := &Balancer{
 		conns: []*conn{
-			{address: resolver.Address{Addr: "10.22.65.14:8081"}},
-			{address: resolver.Address{Addr: "10.22.65.14:8082"}},
-			{address: resolver.Address{Addr: "10.22.65.14:8083"}},
+			{address: resolver.Address{Addr: "127.0.0.1:8081"}},
+			{address: resolver.Address{Addr: "127.0.0.1:8082"}},
+			{address: resolver.Address{Addr: "127.0.0.1:8083"}},
 		},
 	}
 	balancer.updateRespTime(endpoint, query)

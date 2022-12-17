@@ -24,14 +24,13 @@ func (p *Picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 			res = p.conns[i]
 		}
 	}
-	res.numReq ++
+	res.numReq++
 	return balancer.PickResult{SubConn: res.sub, Done: func(info balancer.DoneInfo) {
-		atomic.AddUint64(&res.numReq, -1)
+		atomic.AddInt64(&res.numReq, -1)
 	}}, nil
 }
 
 type PickerBuilder struct {
-
 }
 
 func (p *PickerBuilder) Build(info base.PickerBuildInfo) balancer.Picker {
@@ -44,7 +43,11 @@ func (p *PickerBuilder) Build(info base.PickerBuildInfo) balancer.Picker {
 	}
 }
 
+func (p *PickerBuilder) Name() string {
+	return "LEAST_ACTIVE"
+}
+
 type conn struct {
-	numReq uint64
-	sub balancer.SubConn
+	numReq int64
+	sub    balancer.SubConn
 }
